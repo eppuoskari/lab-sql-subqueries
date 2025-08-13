@@ -115,7 +115,66 @@ WHERE film_id in (SELECT film_id FROM film_actor
 
 -- 7. Find the films rented by the most profitable customer in the Sakila database. You can use the customer and payment tables to 
 --    find the most profitable customer, i.e., the customer who has made the largest sum of payments.
+SELECT customer_id
+FROM payment
+GROUP BY customer_id
+ORDER BY SUM(amount) DESC
+LIMIT 1;
 
+SELECT rental_id FROM payment
+WHERE customer_id = (SELECT customer_id
+	FROM payment
+	GROUP BY customer_id
+	ORDER BY SUM(amount) DESC
+	LIMIT 1);
+
+SELECT inventory_id FROM rental
+WHERE rental_id IN (SELECT rental_id FROM payment
+	WHERE customer_id = (SELECT customer_id
+		FROM payment
+		GROUP BY customer_id
+		ORDER BY SUM(amount) DESC
+		LIMIT 1));
+        
+SELECT film_id FROM inventory
+WHERE inventory_id IN (SELECT inventory_id FROM rental
+	WHERE rental_id IN (SELECT rental_id FROM payment
+		WHERE customer_id = (SELECT customer_id
+			FROM payment
+			GROUP BY customer_id
+			ORDER BY SUM(amount) DESC
+			LIMIT 1)));
+            
+SELECT DISTINCT(title) FROM film
+WHERE film_id IN (SELECT film_id FROM inventory
+	WHERE inventory_id IN (SELECT inventory_id FROM rental
+		WHERE rental_id IN (SELECT rental_id FROM payment
+			WHERE customer_id = (SELECT customer_id
+				FROM payment
+				GROUP BY customer_id
+				ORDER BY SUM(amount) DESC
+				LIMIT 1))));
 
 -- 8. Retrieve the client_id and the total_amount_spent of those clients who spent more than the average of the total_amount spent by each client. 
 --    You can use subqueries to accomplish this.
+SELECT SUM(amount) AS total_amount
+FROM payment
+GROUP BY customer_id;
+
+SELECT AVG(total_amount)
+FROM (SELECT SUM(amount) AS total_amount
+	FROM payment
+	GROUP BY customer_id) AS subquery;
+    
+SELECT 
+    customer_id,
+    SUM(amount) AS total_amount_spent
+FROM payment
+GROUP BY customer_id
+HAVING SUM(amount) > (
+    SELECT AVG(total_amount) 
+    FROM (
+        SELECT SUM(amount) AS total_amount
+        FROM payment
+        GROUP BY customer_id) AS subquery
+);
